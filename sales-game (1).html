@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Journey to Closed Won</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            background-color: #333;
+            overflow: hidden;
+        }
+
+        #start-screen, #game-over-screen, #win-screen, #custom-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 2;
+        }
+
+        #game-over-screen, #win-screen {
+            display: none;
+        }
+
+        #score-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 18px;
+            text-align: right;
+        }
+        
+        #compelling-event {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background-color: #FF5722;
+            border: 2px solid #FFC107;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 1;
+            display: none;
+        }
+        
+        #psf-commit {
+            position: absolute;
+            width: 80px;
+            height: 60px;
+            background-color: #4CAF50;
+            border: 2px solid #8BC34A;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 1;
+            display: none;
+        }
+        
+        .meddpicc-letter {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: gold;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: black;
+            z-index: 1;
+        }
+
+        #player {
+            position: absolute;
+            width: 40px;
+            height: 60px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            z-index: 1;
+        }
+
+        #finish {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .obstacle {
+            position: absolute;
+            height: 30px;
+            background-color: blue;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 12px;
+            text-align: center;
+            padding: 0 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-top: 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .preview {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #666;
+            margin: 10px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .upload-area {
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #meddpicc-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+        }
+
+        #meddpicc-letters {
+            display: flex;
+            gap: 5px;
+        }
+
+        .letter-box {
+            width: 25px;
+            height: 25px;
+            border: 1px solid white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+
+        .collected {
+            background-color: gold;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <div id="score-container">
+            <div id="time-score">Time Remaining: 100</div>
+        </div>
+        <div id="meddpicc-display">
+            <div>MEDDPICC Letters:</div>
+            <div id="meddpicc-letters">
+                <div class="letter-box" id="letter-M">M</div>
+                <div class="letter-box" id="letter-E">E</div>
+                <div class="letter-box" id="letter-D1">D</div>
+                <div class="letter-box" id="letter-D2">D</div>
+                <div class="letter-box" id="letter-P">P</div>
+                <div class="letter-box" id="letter-I">I</div>
+                <div class="letter-box" id="letter-C1">C</div>
+                <div class="letter-box" id="letter-C2">C</div>
+            </div>
+        </div>
+        <div id="player"></div>
+        <div id="finish"></div>
+        <div id="compelling-event">Compelling Event</div>
+        <div id="psf-commit">PSF COMMIT</div>
+
+        <!-- Custom Screen -->
+        <div id="custom-screen" style="display: none;">
+            <h1>Choose Your Salesperson</h1>
+            <div class="character-selection">
+                <div class="character-option" id="player1" data-image="player1"></div>
+                <div class="character-option" id="player2" data-image="player2"></div>
+                <div class="character-option" id="player3" data-image="player3"></div>
+            </div>
+            <button id="start-custom-btn" disabled>Start Game</button>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen">
+            <h1>Sales Journey to Closed Won</h1>
+            <p>Guide your salesperson to Closed Won status!</p>
+            <p>Use arrow keys or WASD to move</p>
+            <p><strong>Collect all MEDDPICC letters before reaching Closed Won</strong></p>
+            <p>Watch out for deal-breakers - one hit and your deal is dead!</p>
+            <p>Each letter disappears after 3 seconds!</p>
+            <p>Be careful - picking up a duplicate letter will remove it!</p>
+            <p>Look for power-ups:</p>
+            <p>- "Compelling Event" (orange) triples your speed for 10 seconds</p>
+            <p>- "PSF COMMIT" (green) makes you immune to obstacles for 6 seconds</p>
+            <p>Your score is the time remaining when you close the deal</p>
+            <button id="start-btn">Start Journey</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen">
+            <h1>Deal Lost!</h1>
+            <p>Your deal was derailed by: <span id="deal-breaker">an obstacle</span></p>
+            <p>Time Remaining: <span id="final-score">0</span></p>
+            <button id="retry-btn">Try Again</button>
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen">
+            <h1>Deal Closed Won!</h1>
+            <p>Congratulations! You collected all MEDDPICC elements and closed the deal!</p>
+            <p>Time Remaining: <span id="win-score">0</span></p>
+            <button id="play-again-btn">Start New Deal</button>
+        </div>
+    </div>
+
+    <script>
+        // Game elements
+        const game = document.getElementById('game');
+        const player = document.getElementById('player');
+        const finish = document.getElementById('finish');
+        const timeScoreDisplay = document.getElementById('time-score');
+        const finalScore = document.getElementById('final-score');
+        const winScore = document.getElementById('win-score');
+        const dealBreaker = document.getElementById('deal-breaker');
+        const meddpiccLetters = document.getElementById('meddpicc-letters').children;
+
+        // Screens
+        const customScreen = document.getElementById('custom-screen');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const winScreen = document.getElementById('win-screen');
+
+        // Buttons
+        const startBtn = document.getElementById('start-btn');
+        const retryBtn = document.getElementById('retry-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        // Default SVG image for fallback
+        const defaultPlayerSvg = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 60"><circle cx="20" cy="15" r="12" fill="%23f5d7b2" stroke="%23000" stroke-width="1"/><rect x="10" y="27" width="20" height="30" rx="5" ry="5" fill="%23304878" stroke="%23000" stroke-width="1"/><line x1="10" y1="38" x2="30" y2="38" stroke="%23000" stroke-width="1"/><text x="20" y="55" font-family="Arial" font-size="8" text-anchor="middle" fill="%23fff">Sales</text></svg>';
+        const defaultClosedWonSvg = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect x="5" y="5" width="50" height="50" fill="%23008a40" stroke="%23fff" stroke-width="2"/><text x="30" y="25" font-family="Arial" font-size="10" text-anchor="middle" fill="%23fff">CLOSED</text><text x="30" y="40" font-family="Arial" font-size="10" text-anchor="middle" fill="%23fff">WON</text><path d="M15,30 L25,40 L45,20" stroke="%23fff" stroke-width="3" fill="none"/></svg>';
+
+        // Deal breaker types
+        const dealBreakers = [
+            "Price",
+            "Funding Denied",
+            "Doing this Internally",
+            "Different Partner",
+            "On Hold",
+            "Competing Priorities"
+        ];
+
+        // MEDDPICC letters
+        const meddpiccLettersArray = ['M', 'E', 'D', 'D', 'P', 'I', 'C', 'C'];
+        const collectedLetters = {
+            'M': false,
+            'E': false,
+            'D1': false,
+            'D2': false,
+            'P': false,
+            'I': false,
+            'C1': false,
+            'C2': false
+        };
+
+        // Function to check if an image exists
+        function imageExists(url, callback) {
+            const img = new Image();
+            img.onload = function() { callback(true); };
+            img.onerror = function() { callback(false); };
+            img.src = url;
+        }
+
+        // Game state
+        let playerImage = 'player1.jpg'; // Use the player1.jpg file
+        let closedWonImage = 'closedwon.jpg'; // Use the closedwon.jpg file
+        let gameActive = false;
+        let timeScore = 100; // Starting from 100 and counting down
+        let obstacles = [];
+        let obstacleTimer = null;
+        let scoreTimer = null;
+        let letterTimer = null;
+        let gameLoop = null;
+        let obstacleSpeed = 2;
+        let activeLetters = [];
+        let letterRemovalTimers = {};
+        let compellingEventTimer = null;
+        let compellingEventActive = false;
+        let psfCommitTimer = null;
+        let psfCommitActive = false;
+        let playerPoweredUp = false;
+        let playerImmune = false;
+        let powerUpEndTimer = null;
+        let immuneEndTimer = null;
+        let normalMoveSpeed = 15; // Regular movement speed
+        let poweredUpMoveSpeed = 45; // Tripled movement speed
+
+        // Game dimensions
+        const gameWidth = 600;
+        const gameHeight = 600;
+        const playerWidth = 40;
+        const playerHeight = 60;
+
+        // Player position
+        let playerX = gameWidth / 2 - playerWidth / 2;
+        let playerY = gameHeight - playerHeight - 20;
+
+        // Character selection handling
+        playerOptions.forEach(option => {
+            const characterId = option.dataset.image;
+            // Use our embedded SVG images
+            option.style.backgroundImage = `url(${characterImages[characterId]})`;
+            
+            // Add click event
+            option.addEventListener('click', function() {
+                // Remove selected class from all options
+                playerOptions.forEach(opt => opt.classList.remove('selected'));
+                
+                // Add selected class to this option
+                this.classList.add('selected');
+                
+                // Store the selected image
+                selectedCharacter = this.dataset.image;
+                playerImage = characterImages[selectedCharacter];
+                
+                // Enable start button
+                startCustomBtn.disabled = false;
+            });
+        });
+
+        startCustomBtn.addEventListener('click', function() {
+            if (selectedCharacter) {
+                // Use our embedded characters
+                player.style.backgroundImage = `url(${playerImage})`;
+                finish.style.backgroundImage = `url(${closedWonImage})`;
+                
+                customScreen.style.display = 'none';
+                startScreen.style.display = 'flex';
+            }
+        });
+
+        // Initialize game
+        function initGame() {
+            // Reset game state
+            gameActive = true;
+            timeScore = 100;
+            timeScoreDisplay.textContent = 'Time Remaining: 100';
+            
+            // Reset MEDDPICC collection status
+            for (let key in collectedLetters) {
+                collectedLetters[key] = false;
+            }
+            updateMEDDPICCDisplay();
+            
+            // Clear any existing letters
+            activeLetters.forEach(letter => {
+                if (letter.parentNode) {
+                    game.removeChild(letter);
+                }
+            });
+            activeLetters = [];
+            
+            // Clear letter timers
+            for (let timerId in letterRemovalTimers) {
+                clearTimeout(letterRemovalTimers[timerId]);
+            }
+            letterRemovalTimers = {};
+            
+            // Clear obstacles
+            obstacles.forEach(obstacle => {
+                if (obstacle.parentNode) {
+                    game.removeChild(obstacle);
+                }
+            });
+            obstacles = [];
+            
+            // Reset player position
+            playerX = gameWidth / 2 - playerWidth / 2;
+            playerY = gameHeight - playerHeight - 20;
+            updatePlayerPosition();
+            
+            // Make sure images are set (try again in case they were loaded since startup)
+            imageExists(playerImage, function(exists) {
+                if (exists) {
+                    player.style.backgroundImage = `url(${playerImage})`;
+                } else {
+                    player.style.backgroundImage = `url(${defaultPlayerSvg})`;
+                }
+            });
+            
+            // Reset screens
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            winScreen.style.display = 'none';
+            
+            // Start game timers
+            obstacleTimer = setInterval(createObstacle, 1500);
+            scoreTimer = setInterval(updateScore, 1000);
+            letterTimer = setTimeout(createLetter, 2000); // Start first letter after 2 seconds
+            compellingEventTimer = setTimeout(createCompellingEvent, 10000); // First compelling event after 10 seconds
+            psfCommitTimer = setTimeout(createPSFCommit, 15000); // First PSF COMMIT after 15 seconds
+            
+            // Reset power-up state
+            playerPoweredUp = false;
+            playerImmune = false;
+            if (powerUpEndTimer) {
+                clearTimeout(powerUpEndTimer);
+                powerUpEndTimer = null;
+            }
+            if (immuneEndTimer) {
+                clearTimeout(immuneEndTimer);
+                immuneEndTimer = null;
+            }
+            
+            // Start game loop
+            gameLoop = requestAnimationFrame(update);
+        }
+        
+        // Create a MEDDPICC letter at random location
+        function createLetter() {
+            if (!gameActive) return;
+            
+            // Find which letters haven't been collected yet
+            const uncollectedLetters = [];
+            if (!collectedLetters['M']) uncollectedLetters.push('M');
+            if (!collectedLetters['E']) uncollectedLetters.push('E');
+            if (!collectedLetters['D1']) uncollectedLetters.push('D1');
+            if (!collectedLetters['D2']) uncollectedLetters.push('D2');
+            if (!collectedLetters['P']) uncollectedLetters.push('P');
+            if (!collectedLetters['I']) uncollectedLetters.push('I');
+            if (!collectedLetters['C1']) uncollectedLetters.push('C1');
+            if (!collectedLetters['C2']) uncollectedLetters.push('C2');
+            
+            // If all letters have been collected, no need to create more
+            if (uncollectedLetters.length === 0) {
+                return;
+            }
+            
+            // Choose a random uncollected letter
+            const letterKey = uncollectedLetters[Math.floor(Math.random() * uncollectedLetters.length)];
+            let letterChar = letterKey.charAt(0);
+            
+            // Position letter in a playable area (not too close to edges)
+            const letterSize = 30;
+            const letterX = Math.random() * (gameWidth - letterSize - 40) + 20;
+            const letterY = Math.random() * (gameHeight - letterSize - 120) + 80; // Keep away from top and bottom
+            
+            const letter = document.createElement('div');
+            letter.className = 'meddpicc-letter';
+            letter.textContent = letterChar;
+            letter.style.left = `${letterX}px`;
+            letter.style.top = `${letterY}px`;
+            letter.dataset.key = letterKey;
+            
+            game.appendChild(letter);
+            activeLetters.push(letter);
+            
+            // Set timer to remove letter after 3 seconds
+            letterRemovalTimers[letterKey] = setTimeout(() => {
+                if (gameActive && letter.parentNode) {
+                    game.removeChild(letter);
+                    activeLetters = activeLetters.filter(l => l !== letter);
+                    
+                    // Schedule next letter
+                    letterTimer = setTimeout(createLetter, 1000);
+                }
+            }, 3000);
+        }
+
+        // Update MEDDPICC display
+        function updateMEDDPICCDisplay() {
+            document.getElementById('letter-M').classList.toggle('collected', collectedLetters['M']);
+            document.getElementById('letter-E').classList.toggle('collected', collectedLetters['E']);
+            document.getElementById('letter-D1').classList.toggle('collected', collectedLetters['D1']);
+            document.getElementById('letter-D2').classList.toggle('collected', collectedLetters['D2']);
+            document.getElementById('letter-P').classList.toggle('collected', collectedLetters['P']);
+            document.getElementById('letter-I').classList.toggle('collected', collectedLetters['I']);
+            document.getElementById('letter-C1').classList.toggle('collected', collectedLetters['C1']);
+            document.getElementById('letter-C2').classList.toggle('collected', collectedLetters['C2']);
+        }
+
+        // Position player on screen
+        function updatePlayerPosition() {
+            player.style.left = `${playerX}px`;
+            player.style.top = `${playerY}px`;
+        }
+
+        // Create new obstacle
+        function createObstacle() {
+            if (!gameActive) return;
+            
+            const width = Math.random() * 100 + 80; // Slightly wider obstacles for text
+            const height = 30;
+            const y = Math.random() * (gameHeight - 200) + 80;
+            
+            // Start from either left or right
+            const startLeft = Math.random() < 0.5;
+            const x = startLeft ? -width : gameWidth;
+            const speed = (Math.random() * 2 + 1) * obstacleSpeed * (startLeft ? 1 : -1);
+            
+            // Choose a random deal breaker
+            const breakerText = dealBreakers[Math.floor(Math.random() * dealBreakers.length)];
+            
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            obstacle.style.width = `${width}px`;
+            obstacle.style.height = `${height}px`;
+            obstacle.style.left = `${x}px`;
+            obstacle.style.top = `${y}px`;
+            obstacle.dataset.speed = speed;
+            obstacle.dataset.breaker = breakerText;
+            obstacle.textContent = breakerText;
+            
+            game.appendChild(obstacle);
+            obstacles.push(obstacle);
+        }
+
+        // Update time score (counting down)
+        function updateScore() {
+            if (!gameActive) return;
+            
+            timeScore = Math.max(0, timeScore - 1); // Decrease score by 1 each second
+            timeScoreDisplay.textContent = `Time Remaining: ${timeScore}`;
+            
+            // End game if time runs out
+            if (timeScore <= 0) {
+                gameOver("Time ran out");
+            }
+            
+            // Increase difficulty every 20 seconds
+            if (timeScore % 20 === 0 && timeScore > 0) {
+                obstacleSpeed += 0.5;
+            }
+        }
+        
+        // Update MEDDPICC collection
+        function collectLetter(letter) {
+            if (!gameActive) return;
+            
+            const letterKey = letter.dataset.key;
+            const letterChar = letter.textContent;
+            
+            // Check if already collected
+            if (collectedLetters[letterKey]) {
+                // Already collected this letter - remove it and turn it red first
+                letter.style.backgroundColor = 'red';
+                collectedLetters[letterKey] = false;
+                
+                // Update display immediately
+                updateMEDDPICCDisplay();
+                
+                // Remove after a short delay to show the red color
+                setTimeout(() => {
+                    if (letter.parentNode) {
+                        game.removeChild(letter);
+                        activeLetters = activeLetters.filter(l => l !== letter);
+                    }
+                }, 500);
+            } else {
+                // Collect new letter
+                collectedLetters[letterKey] = true;
+                
+                // Remove letter from display
+                game.removeChild(letter);
+                activeLetters = activeLetters.filter(l => l !== letter);
+            }
+            
+            // Clear any existing removal timer for this letter
+            if (letterRemovalTimers[letterKey]) {
+                clearTimeout(letterRemovalTimers[letterKey]);
+                delete letterRemovalTimers[letterKey];
+            }
+            
+            // Update display
+            updateMEDDPICCDisplay();
+            
+            // Schedule next letter
+            letterTimer = setTimeout(createLetter, 1000);
+        }
+
+        // Check if all MEDDPICC letters have been collected
+        function allLettersCollected() {
+            return collectedLetters['M'] && 
+                   collectedLetters['E'] && 
+                   collectedLetters['D1'] && 
+                   collectedLetters['D2'] && 
+                   collectedLetters['P'] && 
+                   collectedLetters['I'] && 
+                   collectedLetters['C1'] && 
+                   collectedLetters['C2'];
+        }
+
+        // Main game update loop
+        function update() {
+            if (!gameActive) return;
+            
+            // Check for collision with finish - only win if player has all MEDDPICC letters
+            if (isColliding(
+                playerX, playerY, playerWidth, playerHeight,
+                finish.offsetLeft, finish.offsetTop, finish.offsetWidth, finish.offsetHeight
+            )) {
+                if (allLettersCollected()) {
+                    winGame();
+                    return;
+                }
+            }
+            
+            // Check for collision with compelling event
+            const compellingEvent = document.getElementById('compelling-event');
+            if (compellingEventActive && isColliding(
+                playerX, playerY, playerWidth, playerHeight,
+                parseInt(compellingEvent.style.left), parseInt(compellingEvent.style.top), 
+                compellingEvent.offsetWidth, compellingEvent.offsetHeight
+            )) {
+                compellingEvent.style.display = 'none';
+                compellingEventActive = false;
+                activatePowerUp();
+            }
+            
+            // Check for collision with PSF COMMIT
+            const psfCommit = document.getElementById('psf-commit');
+            if (psfCommitActive && isColliding(
+                playerX, playerY, playerWidth, playerHeight,
+                parseInt(psfCommit.style.left), parseInt(psfCommit.style.top), 
+                psfCommit.offsetWidth, psfCommit.offsetHeight
+            )) {
+                psfCommit.style.display = 'none';
+                psfCommitActive = false;
+                activateImmunity();
+            }
+            
+            // Check for collision with letters
+            for (let i = 0; i < activeLetters.length; i++) {
+                const letter = activeLetters[i];
+                if (isColliding(
+                    playerX, playerY, playerWidth, playerHeight,
+                    parseInt(letter.style.left), parseInt(letter.style.top), letter.offsetWidth, letter.offsetHeight
+                )) {
+                    collectLetter(letter);
+                    break;
+                }
+            }
+            
+            // Update and check obstacles
+            for (let i = 0; i < obstacles.length; i++) {
+                const obstacle = obstacles[i];
+                const speed = parseFloat(obstacle.dataset.speed);
+                const left = parseFloat(obstacle.style.left) + speed;
+                obstacle.style.left = `${left}px`;
+                
+                // Remove off-screen obstacles
+                if ((speed > 0 && left > gameWidth) || (speed < 0 && left + obstacle.offsetWidth < 0)) {
+                    game.removeChild(obstacle);
+                    obstacles.splice(i, 1);
+                    i--;
+                    continue;
+                }
+                
+                // Check for collision with player - ignore if player is immune
+                if (!playerImmune && isColliding(
+                    playerX, playerY, playerWidth, playerHeight,
+                    left, parseFloat(obstacle.style.top), obstacle.offsetWidth, obstacle.offsetHeight
+                )) {
+                    gameOver(obstacle.dataset.breaker);
+                    return;
+                }
+            }
+            
+            // Continue game loop
+            gameLoop = requestAnimationFrame(update);
+        }
+
+        // Collision detection
+        function isColliding(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return (
+                x1 < x2 + w2 &&
+                x1 + w1 > x2 &&
+                y1 < y2 + h2 &&
+                y1 + h1 > y2
+            );
+        }
+
+        // End game on collision
+        function gameOver(breakerType) {
+            stopGame();
+            dealBreaker.textContent = breakerType || "an obstacle";
+            finalScore.textContent = timeScore;
+            gameOverScreen.style.display = 'flex';
+        }
+
+        // Win game
+        function winGame() {
+            stopGame();
+            winScore.textContent = timeScore;
+            winScreen.style.display = 'flex';
+        }
+
+        // Create a Compelling Event power-up
+        function createCompellingEvent() {
+            if (!gameActive) return;
+            
+            const compellingEvent = document.getElementById('compelling-event');
+            
+            // Position the compelling event in a playable area
+            const eventWidth = 60;
+            const eventHeight = 60;
+            const eventX = Math.random() * (gameWidth - eventWidth - 40) + 20;
+            const eventY = Math.random() * (gameHeight - eventHeight - 120) + 80;
+            
+            compellingEvent.style.left = `${eventX}px`;
+            compellingEvent.style.top = `${eventY}px`;
+            compellingEvent.style.display = 'flex';
+            compellingEventActive = true;
+            
+            // Make it disappear after 3 seconds
+            setTimeout(() => {
+                if (gameActive) {
+                    compellingEvent.style.display = 'none';
+                    compellingEventActive = false;
+                }
+            }, 3000);
+            
+            // Schedule the next compelling event (approximately every 45 seconds)
+            compellingEventTimer = setTimeout(createCompellingEvent, 45000);
+        }
+        
+        // Create a PSF COMMIT power-up for immunity
+        function createPSFCommit() {
+            if (!gameActive) return;
+            
+            const psfCommit = document.getElementById('psf-commit');
+            
+            // Position the PSF COMMIT in a playable area
+            const eventWidth = 80;
+            const eventHeight = 60;
+            const eventX = Math.random() * (gameWidth - eventWidth - 40) + 20;
+            const eventY = Math.random() * (gameHeight - eventHeight - 120) + 80;
+            
+            psfCommit.style.left = `${eventX}px`;
+            psfCommit.style.top = `${eventY}px`;
+            psfCommit.style.display = 'flex';
+            psfCommitActive = true;
+            
+            // Make it disappear after 3 seconds
+            setTimeout(() => {
+                if (gameActive) {
+                    psfCommit.style.display = 'none';
+                    psfCommitActive = false;
+                }
+            }, 3000);
+            
+            // Schedule the next PSF COMMIT (approximately every 30 seconds)
+            psfCommitTimer = setTimeout(createPSFCommit, 30000);
+        }
+        
+        // Apply power-up effect
+        function activatePowerUp() {
+            if (!gameActive) return;
+            
+            // Visual indication of power-up
+            player.style.boxShadow = '0 0 15px 5px #FFC107';
+            playerPoweredUp = true;
+            
+            // End the power-up after 10 seconds
+            powerUpEndTimer = setTimeout(() => {
+                player.style.boxShadow = 'none';
+                playerPoweredUp = false;
+            }, 10000);
+        }
+        
+        // Apply immunity power-up effect
+        function activateImmunity() {
+            if (!gameActive) return;
+            
+            // Visual indication of immunity
+            player.style.border = '3px solid #4CAF50';
+            player.style.boxShadow = '0 0 15px 5px #4CAF50';
+            playerImmune = true;
+            
+            // End the immunity after 6 seconds
+            immuneEndTimer = setTimeout(() => {
+                if (!playerPoweredUp) {
+                    // Only remove all effects if speed power-up isn't active
+                    player.style.boxShadow = 'none';
+                } else {
+                    // Keep the speed power-up effect
+                    player.style.boxShadow = '0 0 15px 5px #FFC107';
+                }
+                player.style.border = 'none';
+                playerImmune = false;
+            }, 6000);
+        }
+        
+        // Stop all game processes
+        function stopGame() {
+            gameActive = false;
+            clearInterval(obstacleTimer);
+            clearInterval(scoreTimer);
+            clearTimeout(letterTimer);
+            clearTimeout(compellingEventTimer);
+            clearTimeout(psfCommitTimer);
+            clearTimeout(powerUpEndTimer);
+            clearTimeout(immuneEndTimer);
+            
+            for (let timerId in letterRemovalTimers) {
+                clearTimeout(letterRemovalTimers[timerId]);
+            }
+            
+            cancelAnimationFrame(gameLoop);
+            
+            obstacleTimer = null;
+            scoreTimer = null;
+            letterTimer = null;
+            compellingEventTimer = null;
+            psfCommitTimer = null;
+            powerUpEndTimer = null;
+            immuneEndTimer = null;
+            letterRemovalTimers = {};
+            gameLoop = null;
+            
+            // Reset visual effects
+            player.style.boxShadow = 'none';
+            player.style.border = 'none';
+            document.getElementById('compelling-event').style.display = 'none';
+            document.getElementById('psf-commit').style.display = 'none';
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', function(e) {
+            if (!gameActive) return;
+            
+            const key = e.key.toLowerCase();
+            // Use tripled speed if powered up
+            const moveSpeed = playerPoweredUp ? poweredUpMoveSpeed : normalMoveSpeed;
+            
+            switch(key) {
+                case 'arrowleft':
+                case 'a':
+                    playerX = Math.max(0, playerX - moveSpeed);
+                    break;
+                case 'arrowright':
+                case 'd':
+                    playerX = Math.min(gameWidth - playerWidth, playerX + moveSpeed);
+                    break;
+                case 'arrowup':
+                case 'w':
+                    playerY = Math.max(0, playerY - moveSpeed);
+                    break;
+                case 'arrowdown':
+                case 's':
+                    playerY = Math.min(gameHeight - playerHeight, playerY + moveSpeed);
+                    break;
+            }
+            
+            updatePlayerPosition();
+        });
+
+        // Button event listeners
+        startBtn.addEventListener('click', initGame);
+        retryBtn.addEventListener('click', initGame);
+        playAgainBtn.addEventListener('click', initGame);
+
+        // Initialize with single player
+        setupGame(); // Call this function to set up player and closed won images
+    </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AE Frogger</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+        }
+        
+        .game-image {
+            max-width: 500px;
+            width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+        
+        .play-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 40px;
+            font-size: 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .play-button:hover {
+            background-color: #3e8e41;
+            transform: scale(1.05);
+        }
+        
+        .play-button:active {
+            background-color: #3e8e41;
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="AE Frogger Home.jpeg" alt="AE Frogger Home" class="game-image">
+        <a href="AEFROGGER.html">
+            <button class="play-button">Play</button>
+        </a>
+    </div>
+</body>
+</html>

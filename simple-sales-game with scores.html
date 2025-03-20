@@ -1,0 +1,1473 @@
+    <script>
+        // Game elements
+        const gameContainer = document.getElementById('gameContainer');
+        const player = document.getElementById('player');
+        const goal = document.getElementById('goal');
+        const timer = document.getElementById('timer');
+        const powerup1 = document.getElementById('powerup1');
+        const powerup2 = document.getElementById('powerup2');
+        const gamesPlayedCounter = document.getElementById('gamesPlayedCounter');
+        
+        // Screens
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const winScreen = document.getElementById('winScreen');
+        const highScoreInputScreen = document.getElementById('highScoreInputScreen');
+        const lostReason = document.getElementById('lostReason');
+        const finalScore = document.getElementById('finalScore');
+        const winScore = document.getElementById('winScore');
+        const newHighScore = document.getElementById('newHighScore');
+        const highScoreInput = document.getElementById('highScoreInput');
+        const highScoresList = document.getElementById('highScoresList');
+        
+        // Buttons
+        const startButton = document.getElementById('startButton');
+        const retryButton = document.getElementById('retryButton');
+        const playAgainButton = document.getElementById('playAgainButton');
+        const returnToMenuButton = document.getElementById('returnToMenuButton');
+        const returnToMenuFromWinButton = document.getElementById('returnToMenuFromWinButton');
+        const submitScoreButton = document.getElementById('submitScoreButton');
+        
+        // High scores management
+        let highScores = [];
+        const MAX_HIGH_SCORES = 10;
+        
+        // Load high scores from local storage
+        function loadHighScores() {
+            const savedScores = localStorage.getItem('salesGameHighScores');
+            if (savedScores) {
+                highScores = JSON.parse(savedScores);
+            } else {
+                // Default high scores if none exist
+                highScores = [
+                    { name: "SAM", score: 85 },
+                    { name: "JOE", score: 74 },
+                    { name: "AMY", score: 67 },
+                    { name: "BOB", score: 58 },
+                    { name: "TOM", score: 45 }
+                ];
+                saveHighScores();
+            }
+            
+            // Load total games played
+            const savedGamesPlayed = localStorage.getItem('salesGameTotalPlayed');
+            if (savedGamesPlayed) {
+                totalGamesPlayed = parseInt(savedGamesPlayed);
+            }
+            
+            // Update display
+            displayHighScores();
+            updateGamesPlayedCounter();
+        }
+        
+        // Save games played count to local storage
+        function saveGamesPlayed() {
+            localStorage.setItem('salesGameTotalPlayed', totalGamesPlayed.toString());
+        }
+        
+        // Update games played counter display
+        function updateGamesPlayedCounter() {
+            gamesPlayedCounter.textContent = `Total Games Played: ${totalGamesPlayed}`;
+        }
+        
+        // Increment games played counter
+        function incrementGamesPlayed() {
+            totalGamesPlayed++;
+            saveGamesPlayed();
+            updateGamesPlayedCounter();
+        }
+        
+        // Save high scores to local storage
+        function saveHighScores() {
+            localStorage.setItem('salesGameHighScores', JSON.stringify(highScores));
+        }
+        
+        // Display high scores in the table
+        function displayHighScores() {
+            highScoresList.innerHTML = '';
+            
+            highScores.forEach((score, index) => {
+                const row = document.createElement('tr');
+                const rankCell = document.createElement('td');
+                const nameCell = document.createElement('td');
+                const scoreCell = document.createElement('td');
+                
+                rankCell.textContent = index + 1;
+                nameCell.textContent = score.name;
+                scoreCell.textContent = score.score;
+                
+                row.appendChild(rankCell);
+                row.appendChild(nameCell);
+                row.appendChild(scoreCell);
+                
+                highScoresList.appendChild(row);
+            });
+        }
+        
+        // Check if a score qualifies for the high score list
+        function isHighScore(score) {
+            if (highScores.length < MAX_HIGH_SCORES) {
+                return true;
+            }
+            
+            return score > highScores[highScores.length - 1].score;
+        }
+        
+        // Add a new high score
+        function addHighScore(name, score) {
+            const newScore = { name, score };
+            
+            // Add the new score
+            highScores.push(newScore);
+            
+            // Sort by score (descending)
+            highScores.sort((a, b) => b.score - a.score);
+            
+            // Trim to max scores
+            if (highScores.length > MAX_HIGH_SCORES) {
+                highScores = highScores.slice(0, MAX_HIGH_SCORES);
+            }
+            
+            // Save and display
+            saveHighScores();
+            displayHighScores();
+        }
+        
+        // Game variables
+        const gameWidth = 600;
+        const gameHeight = 600;
+        const playerWidth = 40;
+        const playerHeight = 60;
+        let playerX = gameWidth / 2 - playerWidth / 2;
+        let playerY = gameHeight - playerHeight - 20;
+        let playerSpeed = 10; // Doubled base speed
+        let gameActive = false;
+        let timeRemaining = 100;
+        let gameLoop;
+        let timerInterval;
+        let letters = [];
+        let obstacles = [];
+        let letterSpawnInterval;
+        let obstacleSpawnInterval;
+        let powerup1Interval;
+        let powerup2Interval;
+        let isPoweredUp1 = false;
+        let isPoweredUp2 = false;
+        let powerup1Timer;
+        let powerup2Timer;
+        let totalGamesPlayed = 0; // Track total games played
+        
+        // Letter tracking
+        const collectedLetters = {
+            'M': false,
+            'E': false,
+            'D1': false,
+            'D2': false,
+            'P': false,
+            'I': false,
+            'C1': false,
+            'C2': false
+        };
+        
+        // Deal breakers
+        const dealBreakers = [
+            "Price",
+            "Funding Denied",
+            "Doing Internally",
+            "Different Partner",
+            "On Hold",
+            "Competing Priorities"
+        ];
+        
+        // Initialize player position
+        function resetPlayer() {
+            playerX = gameWidth / 2 - playerWidth / 2;
+            playerY = gameHeight - playerHeight - 20;
+            updatePlayerPosition();
+            player.style.boxShadow = 'none';
+            player.style.border = 'none';
+        }
+        
+        // Update player position on screen
+        function updatePlayerPosition() {
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+        }
+        
+        // Initialize game
+        function initGame() {
+            // Increment games played counter
+            incrementGamesPlayed();
+            
+            gameActive = true;
+            timeRemaining = 100;
+            isPoweredUp1 = false;
+            isPoweredUp2 = false;
+            playerSpeed = 10; // Doubled from 5 to 10
+            
+            // Reset collected letters
+            for (let key in collectedLetters) {
+                collectedLetters[key] = false;
+            }
+            updateLetterDisplay();
+            
+            // Clear any existing game elements
+            clearLetters();
+            clearObstacles();
+            
+            // Reset player
+            resetPlayer();
+            
+            // Hide screens
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            winScreen.style.display = 'none';
+            highScoreInputScreen.style.display = 'none';
+            
+            // Start game intervals
+            timerInterval = setInterval(updateTimer, 1000);
+            letterSpawnInterval = setInterval(spawnLetter, 3000);
+            obstacleSpawnInterval = setInterval(spawnObstacle, 2000);
+            powerup1Interval = setInterval(() => spawnPowerup(powerup1), 45000);
+            powerup2Interval = setInterval(() => spawnPowerup(powerup2), 30000);
+            
+            // Start game loop
+            gameLoop = requestAnimationFrame(gameUpdate);
+        }
+        
+        // Return to main menu
+        function returnToMenu() {
+            stopGameIntervals();
+            resetPlayer();
+            clearLetters();
+            clearObstacles();
+            
+            // Reset scores
+            for (let key in collectedLetters) {
+                collectedLetters[key] = false;
+            }
+            updateLetterDisplay();
+            
+            // Show start screen
+            startScreen.style.display = 'flex';
+            gameOverScreen.style.display = 'none';
+            winScreen.style.display = 'none';
+            highScoreInputScreen.style.display = 'none';
+            instructionsScreen.style.display = 'none';
+            
+            // Refresh high scores
+            displayHighScores();
+        }
+        
+        // Show instructions screen
+        function showInstructions() {
+            startScreen.style.display = 'none';
+            instructionsScreen.style.display = 'flex';
+        }
+        
+        // Update timer
+        function updateTimer() {
+            if (!gameActive) return;
+            
+            timeRemaining--;
+            timer.textContent = timeRemaining;
+            
+            if (timeRemaining <= 0) {
+                endGame("Time ran out");
+            }
+        }
+        
+        // Spawn a letter
+        function spawnLetter() {
+            if (!gameActive) return;
+            
+            // Find which letters haven't been collected
+            const uncollectedLetters = [];
+            
+            if (!collectedLetters['M']) uncollectedLetters.push(['M', 'M']);
+            if (!collectedLetters['E']) uncollectedLetters.push(['E', 'E']);
+            if (!collectedLetters['D1']) uncollectedLetters.push(['D1', 'D']);
+            if (!collectedLetters['D2']) uncollectedLetters.push(['D2', 'D']);
+            if (!collectedLetters['P']) uncollectedLetters.push(['P', 'P']);
+            if (!collectedLetters['I']) uncollectedLetters.push(['I', 'I']);
+            if (!collectedLetters['C1']) uncollectedLetters.push(['C1', 'C']);
+            if (!collectedLetters['C2']) uncollectedLetters.push(['C2', 'C']);
+            
+            // If all letters collected, don't spawn more
+            if (uncollectedLetters.length === 0) return;
+            
+            // Pick a random letter
+            const [letterKey, letterChar] = uncollectedLetters[Math.floor(Math.random() * uncollectedLetters.length)];
+            
+            // Create letter element
+            const letter = document.createElement('div');
+            letter.className = 'letter';
+            letter.textContent = letterChar;
+            letter.dataset.key = letterKey;
+            
+            // Position randomly but not too close to edges
+            const letterSize = 30;
+            const x = Math.random() * (gameWidth - letterSize - 40) + 20;
+            const y = Math.random() * (gameHeight - letterSize - 120) + 80;
+            
+            letter.style.left = x + 'px';
+            letter.style.top = y + 'px';
+            
+            // Add to game
+            gameContainer.appendChild(letter);
+            letters.push(letter);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (gameActive && letter.parentNode) {
+                    gameContainer.removeChild(letter);
+                    letters = letters.filter(l => l !== letter);
+                }
+            }, 3000);
+        }
+        
+        // Spawn an obstacle
+        function spawnObstacle() {
+            if (!gameActive) return;
+            
+            // Create obstacle element
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            
+            // Pick random deal breaker
+            const breakerText = dealBreakers[Math.floor(Math.random() * dealBreakers.length)];
+            obstacle.textContent = breakerText;
+            obstacle.dataset.reason = breakerText;
+            
+            // Calculate width based on text length (ensure enough room for text)
+            const textWidth = breakerText.length * 8 + 20; // Approximate width based on text length
+            const width = Math.max(textWidth, 100 + Math.random() * 50); // Ensure minimum width
+            obstacle.style.width = width + 'px';
+            
+            // Start from either left or right
+            const startLeft = Math.random() < 0.5;
+            const x = startLeft ? -width : gameWidth;
+            const y = Math.random() * (gameHeight - 200) + 80;
+            const speed = (Math.random() * 2 + 1) * (startLeft ? 1 : -1);
+            
+            obstacle.style.left = x + 'px';
+            obstacle.style.top = y + 'px';
+            obstacle.dataset.speed = speed;
+            
+            // Add to game
+            gameContainer.appendChild(obstacle);
+            obstacles.push(obstacle);
+        }
+        
+        // Spawn a powerup
+        function spawnPowerup(powerupElement) {
+            if (!gameActive) return;
+            
+            // Position powerup
+            const size = 40;
+            const x = Math.random() * (gameWidth - size - 40) + 20;
+            const y = Math.random() * (gameHeight - size - 120) + 80;
+            
+            powerupElement.style.left = x + 'px';
+            powerupElement.style.top = y + 'px';
+            powerupElement.style.display = 'flex';
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                if (gameActive) {
+                    powerupElement.style.display = 'none';
+                }
+            }, 3000);
+        }
+        
+        // Activate fast powerup (Compelling Event)
+        function activatePowerup1() {
+            isPoweredUp1 = true;
+            playerSpeed = 30; // Triple speed (from increased base speed)
+            player.style.boxShadow = '0 0 15px 5px orange';
+
+            // Reset after 6 seconds (changed from 10)
+            clearTimeout(powerup1Timer);
+            powerup1Timer = setTimeout(() => {
+                isPoweredUp1 = false;
+                playerSpeed = 10; // Back to doubled base speed
+                if (!isPoweredUp2) {
+                    player.style.boxShadow = 'none';
+                }
+            }, 6000);
+        }
+        
+        // Activate shield powerup (PSF COMMIT)
+        function activatePowerup2() {
+            isPoweredUp2 = true;
+            player.style.border = '3px solid purple';
+            player.style.boxShadow = '0 0 15px 5px purple';
+            
+            // Reset after 6 seconds
+            clearTimeout(powerup2Timer);
+            powerup2Timer = setTimeout(() => {
+                isPoweredUp2 = false;
+                player.style.border = 'none';
+                if (!isPoweredUp1) {
+                    player.style.boxShadow = 'none';
+                } else {
+                    player.style.boxShadow = '0 0 15px 5px orange';
+                }
+            }, 6000);
+        }
+        
+        // Update letter display
+        function updateLetterDisplay() {
+            document.getElementById('letterM').classList.toggle('collected', collectedLetters['M']);
+            document.getElementById('letterE').classList.toggle('collected', collectedLetters['E']);
+            document.getElementById('letterD1').classList.toggle('collected', collectedLetters['D1']);
+            document.getElementById('letterD2').classList.toggle('collected', collectedLetters['D2']);
+            document.getElementById('letterP').classList.toggle('collected', collectedLetters['P']);
+            document.getElementById('letterI').classList.toggle('collected', collectedLetters['I']);
+            document.getElementById('letterC1').classList.toggle('collected', collectedLetters['C1']);
+            document.getElementById('letterC2').classList.toggle('collected', collectedLetters['C2']);
+        }
+        
+        // Check if all letters are collected
+        function allLettersCollected() {
+            return collectedLetters['M'] && 
+                   collectedLetters['E'] && 
+                   collectedLetters['D1'] && 
+                   collectedLetters['D2'] && 
+                   collectedLetters['P'] && 
+                   collectedLetters['I'] && 
+                   collectedLetters['C1'] && 
+                   collectedLetters['C2'];
+        }
+        
+        // Collect letter
+        function collectLetter(letter) {
+            const letterKey = letter.dataset.key;
+            
+            // If already collected, remove it
+            if (collectedLetters[letterKey]) {
+                letter.style.backgroundColor = 'red';
+                collectedLetters[letterKey] = false;
+                
+                // Remove after showing red
+                setTimeout(() => {
+                    if (letter.parentNode) {
+                        gameContainer.removeChild(letter);
+                        letters = letters.filter(l => l !== letter);
+                    }
+                }, 300);
+            } else {
+                // Collect new letter
+                collectedLetters[letterKey] = true;
+                gameContainer.removeChild(letter);
+                letters = letters.filter(l => l !== letter);
+            }
+            
+            updateLetterDisplay();
+        }
+        
+        // Clear all letters
+        function clearLetters() {
+            letters.forEach(letter => {
+                if (letter.parentNode) {
+                    gameContainer.removeChild(letter);
+                }
+            });
+            letters = [];
+        }
+        
+        // Clear all obstacles
+        function clearObstacles() {
+            obstacles.forEach(obstacle => {
+                if (obstacle.parentNode) {
+                    gameContainer.removeChild(obstacle);
+                }
+            });
+            obstacles = [];
+        }
+        
+        // Check collision between two elements
+        function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+        }
+        
+        // Main game update loop
+        function gameUpdate() {
+            if (!gameActive) return;
+            
+            // Check for collision with goal
+            if (checkCollision(
+                playerX, playerY, playerWidth, playerHeight,
+                goal.offsetLeft, goal.offsetTop, goal.offsetWidth, goal.offsetHeight
+            )) {
+                if (allLettersCollected()) {
+                    winGame();
+                    return;
+                }
+            }
+            
+            // Check for collision with letters
+            for (let i = 0; i < letters.length; i++) {
+                const letter = letters[i];
+                if (checkCollision(
+                    playerX, playerY, playerWidth, playerHeight,
+                    letter.offsetLeft, letter.offsetTop, letter.offsetWidth, letter.offsetHeight
+                )) {
+                    collectLetter(letter);
+                    break;
+                }
+            }
+            
+            // Check for collision with powerup1
+            if (powerup1.style.display !== 'none' && checkCollision(
+                playerX, playerY, playerWidth, playerHeight,
+                powerup1.offsetLeft, powerup1.offsetTop, powerup1.offsetWidth, powerup1.offsetHeight
+            )) {
+                powerup1.style.display = 'none';
+                activatePowerup1();
+            }
+            
+            // Check for collision with powerup2
+            if (powerup2.style.display !== 'none' && checkCollision(
+                playerX, playerY, playerWidth, playerHeight,
+                powerup2.offsetLeft, powerup2.offsetTop, powerup2.offsetWidth, powerup2.offsetHeight
+            )) {
+                powerup2.style.display = 'none';
+                activatePowerup2();
+            }
+            
+            // Update and check obstacles
+            for (let i = 0; i < obstacles.length; i++) {
+                const obstacle = obstacles[i];
+                const speed = parseFloat(obstacle.dataset.speed);
+                const newLeft = obstacle.offsetLeft + speed;
+                obstacle.style.left = newLeft + 'px';
+                
+                // Remove if off screen
+                if ((speed > 0 && newLeft > gameWidth) || (speed < 0 && newLeft + obstacle.offsetWidth < 0)) {
+                    gameContainer.removeChild(obstacle);
+                    obstacles.splice(i, 1);
+                    i--;
+                    continue;
+                }
+                
+                // Check collision with player (if not shielded)
+                if (!isPoweredUp2 && checkCollision(
+                    playerX, playerY, playerWidth, playerHeight,
+                    obstacle.offsetLeft, obstacle.offsetTop, obstacle.offsetWidth, obstacle.offsetHeight
+                )) {
+                    endGame(obstacle.dataset.reason);
+                    return;
+                }
+            }
+            
+            // Continue game loop
+            gameLoop = requestAnimationFrame(gameUpdate);
+        }
+        
+        // End game (loss)
+        function endGame(reason) {
+            gameActive = false;
+            stopGameIntervals();
+            
+            lostReason.textContent = "Your deal was derailed by: " + reason;
+            finalScore.textContent = timeRemaining;
+            
+            // Check if high score
+            if (isHighScore(timeRemaining)) {
+                newHighScore.textContent = timeRemaining;
+                highScoreInput.value = '';
+                highScoreInputScreen.style.display = 'flex';
+            } else {
+                gameOverScreen.style.display = 'flex';
+            }
+        }
+        
+        // Win game
+        function winGame() {
+            gameActive = false;
+            stopGameIntervals();
+            
+            winScore.textContent = timeRemaining;
+            
+            // Check if high score
+            if (isHighScore(timeRemaining)) {
+                newHighScore.textContent = timeRemaining;
+                highScoreInput.value = '';
+                highScoreInputScreen.style.display = 'flex';
+            } else {
+                winScreen.style.display = 'flex';
+            }
+        }
+        
+        // Submit high score
+        function submitHighScore() {
+            let name = highScoreInput.value.toUpperCase();
+            
+            // Default to "AAA" if empty
+            if (!name.trim()) {
+                name = "AAA";
+            }
+            
+            // Pad to 3 characters if needed
+            while (name.length < 3) {
+                name += "A";
+            }
+            
+            // Trim to 3 characters if too long
+            if (name.length > 3) {
+                name = name.substring(0, 3);
+            }
+            
+            // Add score
+            addHighScore(name, timeRemaining);
+            
+            // Show appropriate screen based on how game ended
+            highScoreInputScreen.style.display = 'none';
+            
+            // If we were showing the high score input from a win, show the win screen
+            // Otherwise show the game over screen
+            if (winScreen.style.display !== 'none') {
+                winScreen.style.display = 'flex';
+            } else {
+                gameOverScreen.style.display = 'flex';
+            }
+        }
+        
+        // Stop all game intervals
+        function stopGameIntervals() {
+            cancelAnimationFrame(gameLoop);
+            clearInterval(timerInterval);
+            clearInterval(letterSpawnInterval);
+            clearInterval(obstacleSpawnInterval);
+            clearInterval(powerup1Interval);
+            clearInterval(powerup2Interval);
+            clearTimeout(powerup1Timer);
+            clearTimeout(powerup2Timer);
+        }
+        
+        // Handle keyboard input
+        document.addEventListener('keydown', function(e) {
+            if (!gameActive) return;
+            
+            const key = e.key.toLowerCase();
+            
+            switch(key) {
+                case 'arrowleft':
+                case 'a':
+                    playerX = Math.max(0, playerX - playerSpeed);
+                    break;
+                case 'arrowright':
+                case 'd':
+                    playerX = Math.min(gameWidth - playerWidth, playerX + playerSpeed);
+                    break;
+                case 'arrowup':
+                case 'w':
+                    playerY = Math.max(0, playerY - playerSpeed);
+                    break;
+                case 'arrowdown':
+                case 's':
+                    playerY = Math.min(gameHeight - playerHeight, playerY + playerSpeed);
+                    break;
+            }
+            
+            updatePlayerPosition();
+        });
+        
+        // Set up button event listeners
+        startButton.addEventListener('click', initGame);
+        retryButton.addEventListener('click', initGame);
+        playAgainButton.addEventListener('click', initGame);
+        returnToMenuButton.addEventListener('click', returnToMenu);
+        returnToMenuFromWinButton.addEventListener('click', returnToMenu);
+        submitScoreButton.addEventListener('click', submitHighScore);
+        showInstructionsButton.addEventListener('click', showInstructions);
+        backToMenuButton.addEventListener('click', returnToMenu);
+        
+        // Handle high score input enter key
+        highScoreInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                submitHighScore();
+            }
+        });
+        
+        // Initialize player position on load
+        updatePlayerPosition();
+        
+        // Load high scores on startup
+        loadHighScores();
+    </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Journey Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            background-color: #333;
+            overflow: hidden;
+        }
+        
+        #player {
+            position: absolute;
+            width: 40px;
+            height: 60px;
+            background-image: url('Player1.png');
+            background-size: cover;
+            background-position: center;
+            border-radius: 5px;
+        }
+        
+        #goal {
+            position: absolute;
+            width: 72px; /* Increased by 20% from 60px */
+            height: 60px; /* Height remains the same */
+            background-image: url('closedwon.jpg');
+            background-size: cover;
+            background-position: center;
+            border-radius: 5px;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .letter {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: gold;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+        
+        .obstacle {
+            position: absolute;
+            height: 30px;
+            background-color: #f44336;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            white-space: nowrap;
+            padding: 0 10px;
+            box-sizing: border-box;
+            min-width: 100px; /* Ensure minimum width for text */
+        }
+        
+        #powerup1 {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background-color: orange;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+        
+        #powerup2 {
+            position: absolute;
+            width: 80px;
+            height: 60px;
+            background-color: purple;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+        
+        #startScreen, #gameOverScreen, #winScreen, #highScoreInputScreen, #instructionsScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        #gameOverScreen, #winScreen, #highScoreInputScreen, #instructionsScreen {
+            display: none;
+        }
+        
+        #highScoreTable {
+            margin: 15px 0;
+            width: 300px;
+            border-collapse: collapse;
+        }
+        
+        #highScoreTable th, #highScoreTable td {
+            padding: 6px 10px;
+            text-align: left;
+            border-bottom: 1px solid #444;
+        }
+        
+        #highScoreTable th {
+            background-color: #333;
+            font-weight: bold;
+        }
+        
+        #highScoreTable tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        #highScoreInput {
+            margin: 10px 0;
+            padding: 8px;
+            font-size: 16px;
+            width: 100px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        
+        .gameButtons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        #hud {
+            position: absolute;
+            width: 100%;
+            top: 10px;
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            padding: 0 10px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        
+        #letterTracker {
+            display: flex;
+        }
+        
+        .letterBox {
+            width: 25px;
+            height: 25px;
+            margin-right: 5px;
+            border: 1px solid white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .collected {
+            background-color: gold;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- HUD -->
+        <div id="hud">
+            <div id="letterTracker">
+                <div class="letterBox" id="letterM">M</div>
+                <div class="letterBox" id="letterE">E</div>
+                <div class="letterBox" id="letterD1">D</div>
+                <div class="letterBox" id="letterD2">D</div>
+                <div class="letterBox" id="letterP">P</div>
+                <div class="letterBox" id="letterI">I</div>
+                <div class="letterBox" id="letterC1">C</div>
+                <div class="letterBox" id="letterC2">C</div>
+            </div>
+            <div id="goal">CLOSED WON!!!</div>
+            <div id="timer">100</div>
+        </div>
+        
+        <!-- Game elements -->
+        <div id="player"></div>
+        <div id="powerup1">Compelling Event</div>
+        <div id="powerup2">PSF COMMIT</div>
+        
+        <!-- Screens -->
+        <div id="startScreen">
+            <h1>Sales Journey to Closed Won</h1>
+            
+            <h2>High Scores</h2>
+            <table id="highScoreTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Name</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody id="highScoresList">
+                    <!-- High scores will be populated here -->
+                </tbody>
+            </table>
+            
+            <p id="gamesPlayedCounter">Total Games Played: 0</p>
+            
+            <div class="gameButtons">
+                <button id="startButton">Start Game</button>
+                <button id="showInstructionsButton">How to Play</button>
+            </div>
+        </div>
+        
+        <div id="instructionsScreen">
+            <h1>How to Play</h1>
+            <p>Collect all MEDDPICC letters before time runs out</p>
+            <p>Avoid the red obstacles</p>
+            <p>Use arrow keys or WASD to move</p>
+            <p><strong>Power-ups:</strong></p>
+            <p>"Compelling Event" (orange): 3x speed for 6 seconds</p>
+            <p>"PSF COMMIT" (purple): Obstacle immunity for 6 seconds</p>
+            <p>Note: If you pick up a letter you already have, you'll lose it!</p>
+            
+            <button id="backToMenuButton">Back to Menu</button>
+        </div>
+        
+        <div id="gameOverScreen">
+            <h1>Deal Lost!</h1>
+            <p id="lostReason">Your deal was derailed</p>
+            <p>Score: <span id="finalScore">0</span></p>
+            <div class="gameButtons">
+                <button id="retryButton">Try Again</button>
+                <button id="returnToMenuButton">Main Menu</button>
+            </div>
+        </div>
+        
+        <div id="winScreen">
+            <h1>Deal Closed Won!</h1>
+            <p>Congratulations! You collected all MEDDPICC elements</p>
+            <p>Score: <span id="winScore">0</span></p>
+            <div class="gameButtons">
+                <button id="playAgainButton">Play Again</button>
+                <button id="returnToMenuFromWinButton">Main Menu</button>
+            </div>
+        </div>
+        
+        <div id="highScoreInputScreen">
+            <h1>New High Score!</h1>
+            <p>Your Score: <span id="newHighScore">0</span></p>
+            <p>Enter your initials (3 letters):</p>
+            <input type="text" id="highScoreInput" maxlength="3" placeholder="AAA">
+            <div class="gameButtons">
+                <button id="submitScoreButton">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game elements
+        const gameContainer = document.getElementById('gameContainer');
+        const player = document.getElementById('player');
+        const goal = document.getElementById('goal');
+        const timer = document.getElementById('timer');
+        const powerup1 = document.getElementById('powerup1');
+        const powerup2 = document.getElementById('powerup2');
+        
+        // Screens
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const winScreen = document.getElementById('winScreen');
+        const lostReason = document.getElementById('lostReason');
+        const finalScore = document.getElementById('finalScore');
+        const winScore = document.getElementById('winScore');
+        
+        // Buttons
+        const startButton = document.getElementById('startButton');
+        const retryButton = document.getElementById('retryButton');
+        const playAgainButton = document.getElementById('playAgainButton');
+        
+        // Game variables
+        const gameWidth = 600;
+        const gameHeight = 600;
+        const playerWidth = 40;
+        const playerHeight = 60;
+        let playerX = gameWidth / 2 - playerWidth / 2;
+        let playerY = gameHeight - playerHeight - 20;
+        let playerSpeed = 10; // Doubled base speed
+        let gameActive = false;
+        let timeRemaining = 100;
+        let gameLoop;
+        let timerInterval;
+        let letters = [];
+        let obstacles = [];
+        let letterSpawnInterval;
+        let obstacleSpawnInterval;
+        let powerup1Interval;
+        let powerup2Interval;
+        let isPoweredUp1 = false;
+        let isPoweredUp2 = false;
+        let powerup1Timer;
+        let powerup2Timer;
+        
+        // Letter tracking
+        const collectedLetters = {
+            'M': false,
+            'E': false,
+            'D1': false,
+            'D2': false,
+            'P': false,
+            'I': false,
+            'C1': false,
+            'C2': false
+        };
+        
+        // Deal breakers
+        const dealBreakers = [
+            "Price",
+            "Funding Denied",
+            "Doing Internally",
+            "Different Partner",
+            "On Hold",
+            "Competing Priorities"
+        ];
+        
+        // Initialize player position
+        function resetPlayer() {
+            playerX = gameWidth / 2 - playerWidth / 2;
+            playerY = gameHeight - playerHeight - 20;
+            updatePlayerPosition();
+            player.style.boxShadow = 'none';
+            player.style.border = 'none';
+        }
+        
+        // Update player position on screen
+        function updatePlayerPosition() {
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+        }
+        
+        // Initialize game
+        function initGame() {
+            gameActive = true;
+            timeRemaining = 100;
+            isPoweredUp1 = false;
+            isPoweredUp2 = false;
+            playerSpeed = 10; // Doubled from 5 to 10
+            
+            // Reset collected letters
+            for (let key in collectedLetters) {
+                collectedLetters[key] = false;
+            }
+            updateLetterDisplay();
+            
+            // Clear any existing game elements
+            clearLetters();
+            clearObstacles();
+            
+            // Reset player
+            resetPlayer();
+            
+            // Hide screens
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            winScreen.style.display = 'none';
+            
+            // Start game intervals
+            timerInterval = setInterval(updateTimer, 1000);
+            letterSpawnInterval = setInterval(spawnLetter, 3000);
+            obstacleSpawnInterval = setInterval(spawnObstacle, 2000);
+            powerup1Interval = setInterval(() => spawnPowerup(powerup1), 45000);
+            powerup2Interval = setInterval(() => spawnPowerup(powerup2), 30000);
+            
+            // Start game loop
+            gameLoop = requestAnimationFrame(gameUpdate);
+        }
+        
+        // Update timer
+        function updateTimer() {
+            if (!gameActive) return;
+            
+            timeRemaining--;
+            timer.textContent = timeRemaining;
+            
+            if (timeRemaining <= 0) {
+                endGame("Time ran out");
+            }
+        }
+        
+        // Spawn a letter
+        function spawnLetter() {
+            if (!gameActive) return;
+            
+            // Find which letters haven't been collected
+            const uncollectedLetters = [];
+            
+            if (!collectedLetters['M']) uncollectedLetters.push(['M', 'M']);
+            if (!collectedLetters['E']) uncollectedLetters.push(['E', 'E']);
+            if (!collectedLetters['D1']) uncollectedLetters.push(['D1', 'D']);
+            if (!collectedLetters['D2']) uncollectedLetters.push(['D2', 'D']);
+            if (!collectedLetters['P']) uncollectedLetters.push(['P', 'P']);
+            if (!collectedLetters['I']) uncollectedLetters.push(['I', 'I']);
+            if (!collectedLetters['C1']) uncollectedLetters.push(['C1', 'C']);
+            if (!collectedLetters['C2']) uncollectedLetters.push(['C2', 'C']);
+            
+            // If all letters collected, don't spawn more
+            if (uncollectedLetters.length === 0) return;
+            
+            // Pick a random letter
+            const [letterKey, letterChar] = uncollectedLetters[Math.floor(Math.random() * uncollectedLetters.length)];
+            
+            // Create letter element
+            const letter = document.createElement('div');
+            letter.className = 'letter';
+            letter.textContent = letterChar;
+            letter.dataset.key = letterKey;
+            
+            // Position randomly but not too close to edges
+            const letterSize = 30;
+            const x = Math.random() * (gameWidth - letterSize - 40) + 20;
+            const y = Math.random() * (gameHeight - letterSize - 120) + 80;
+            
+            letter.style.left = x + 'px';
+            letter.style.top = y + 'px';
+            
+            // Add to game
+            gameContainer.appendChild(letter);
+            letters.push(letter);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (gameActive && letter.parentNode) {
+                    gameContainer.removeChild(letter);
+                    letters = letters.filter(l => l !== letter);
+                }
+            }, 3000);
+        }
+        
+        // Spawn an obstacle
+        function spawnObstacle() {
+            if (!gameActive) return;
+            
+            // Create obstacle element
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            
+            // Pick random deal breaker
+            const breakerText = dealBreakers[Math.floor(Math.random() * dealBreakers.length)];
+            obstacle.textContent = breakerText;
+            obstacle.dataset.reason = breakerText;
+            
+            // Calculate width based on text length (ensure enough room for text)
+            const textWidth = breakerText.length * 8 + 20; // Approximate width based on text length
+            const width = Math.max(textWidth, 100 + Math.random() * 50); // Ensure minimum width
+            obstacle.style.width = width + 'px';
+            
+            // Start from either left or right
+            const startLeft = Math.random() < 0.5;
+            const x = startLeft ? -width : gameWidth;
+            const y = Math.random() * (gameHeight - 200) + 80;
+            const speed = (Math.random() * 2 + 1) * (startLeft ? 1 : -1);
+            
+            obstacle.style.left = x + 'px';
+            obstacle.style.top = y + 'px';
+            obstacle.dataset.speed = speed;
+            
+            // Add to game
+            gameContainer.appendChild(obstacle);
+            obstacles.push(obstacle);
+        }
+        
+        // Spawn a powerup
+        function spawnPowerup(powerupElement) {
+            if (!gameActive) return;
+            
+            // Position powerup
+            const size = 40;
+            const x = Math.random() * (gameWidth - size - 40) + 20;
+            const y = Math.random() * (gameHeight - size - 120) + 80;
+            
+            powerupElement.style.left = x + 'px';
+            powerupElement.style.top = y + 'px';
+            powerupElement.style.display = 'flex';
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                if (gameActive) {
+                    powerupElement.style.display = 'none';
+                }
+            }, 3000);
+        }
+        
+        // Activate fast powerup
+        function activatePowerup1() {
+            isPoweredUp1 = true;
+            playerSpeed = 30; // Triple speed (from increased base speed)
+            player.style.boxShadow = '0 0 15px 5px orange';
+            
+            // Reset after 10 seconds
+            clearTimeout(powerup1Timer);
+            powerup1Timer = setTimeout(() => {
+                isPoweredUp1 = false;
+                playerSpeed = 10; // Back to doubled base speed
+                if (!isPoweredUp2) {
+                    player.style.boxShadow = 'none';
+                }
+            }, 10000);
+        }
+        
+        // Activate shield powerup (PSF COMMIT)
+        function activatePowerup2() {
+            isPoweredUp2 = true;
+            player.style.border = '3px solid purple';
+            player.style.boxShadow = '0 0 15px 5px purple';
+            
+            // Reset after 6 seconds
+            clearTimeout(powerup2Timer);
+            powerup2Timer = setTimeout(() => {
+                isPoweredUp2 = false;
+                player.style.border = 'none';
+                if (!isPoweredUp1) {
+                    player.style.boxShadow = 'none';
+                } else {
+                    player.style.boxShadow = '0 0 15px 5px orange';
+                }
+            }, 6000);
+        }
+        
+        // Update letter display
+        function updateLetterDisplay() {
+            document.getElementById('letterM').classList.toggle('collected', collectedLetters['M']);
+            document.getElementById('letterE').classList.toggle('collected', collectedLetters['E']);
+            document.getElementById('letterD1').classList.toggle('collected', collectedLetters['D1']);
+            document.getElementById('letterD2').classList.toggle('collected', collectedLetters['D2']);
+            document.getElementById('letterP').classList.toggle('collected', collectedLetters['P']);
+            document.getElementById('letterI').classList.toggle('collected', collectedLetters['I']);
+            document.getElementById('letterC1').classList.toggle('collected', collectedLetters['C1']);
+            document.getElementById('letterC2').classList.toggle('collected', collectedLetters['C2']);
+        }
+        
+        // Check if all letters are collected
+        function allLettersCollected() {
+            return collectedLetters['M'] && 
+                   collectedLetters['E'] && 
+                   collectedLetters['D1'] && 
+                   collectedLetters['D2'] && 
+                   collectedLetters['P'] && 
+                   collectedLetters['I'] && 
+                   collectedLetters['C1'] && 
+                   collectedLetters['C2'];
+        }
+        
+        // Collect letter
+        function collectLetter(letter) {
+            const letterKey = letter.dataset.key;
+            
+            // If already collected, remove it
+            if (collectedLetters[letterKey]) {
+                letter.style.backgroundColor = 'red';
+                collectedLetters[letterKey] = false;
+                
+                // Remove after showing red
+                setTimeout(() => {
+                    if (letter.parentNode) {
+                        gameContainer.removeChild(letter);
+                        letters = letters.filter(l => l !== letter);
+                    }
+                }, 300);
+            } else {
+                // Collect new letter
+                collectedLetters[letterKey] = true;
+                gameContainer.removeChild(letter);
+                letters = letters.filter(l => l !== letter);
+            }
+            
+            updateLetterDisplay();
+        }
+        
+        // Clear all letters
+        function clearLetters() {
+            letters.forEach(letter => {
+                if (letter.parentNode) {
+                    gameContainer.removeChild(letter);
+                }
+            });
+            letters = [];
+        }
+        
+        // Clear all obstacles
+        function clearObstacles() {
+            obstacles.forEach(obstacle => {
+                if (obstacle.parentNode) {
+                    gameContainer.removeChild(obstacle);
+                }
+            });
+            obstacles = [];
+        }
+        
+        // Check collision between two elements
+        function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+        }
+        
+        // Main game update loop
+        function gameUpdate() {
+            if (!gameActive) return;
+            
+            // Check for collision with goal
+            if (checkCollision(
+                playerX, playerY, playerWidth, playerHeight,
+                goal.offsetLeft, goal.offsetTop, goal.offsetWidth, goal.offsetHeight
+            )) {
+                if (allLettersCollected()) {
+                    winGame();
+                    return;
+                }
+            }
+            
+            // Check for collision with letters
+            for (let i = 0; i < letters.length; i++) {
+                const letter = letters[i];
+                if (checkCollision(
+                    playerX, playerY, playerWidth, playerHeight,
+                    letter.offsetLeft, letter.offsetTop, letter.offsetWidth, letter.offsetHeight
+                )) {
+                    collectLetter(letter);
+                    break;
+                }
+            }
+            
+            // Check for collision with powerup1
+            if (powerup1.style.display !== 'none' && checkCollision(
+                playerX, playerY, playerWidth, playerHeight,
+                powerup1.offsetLeft, powerup1.offsetTop, powerup1.offsetWidth, powerup1.offsetHeight
+            )) {
+                powerup1.style.display = 'none';
+                activatePowerup1();
+            }
+            
+            // Check for collision with powerup2
+            if (powerup2.style.display !== 'none' && checkCollision(
+                playerX, playerY, playerWidth, playerHeight,
+                powerup2.offsetLeft, powerup2.offsetTop, powerup2.offsetWidth, powerup2.offsetHeight
+            )) {
+                powerup2.style.display = 'none';
+                activatePowerup2();
+            }
+            
+            // Update and check obstacles
+            for (let i = 0; i < obstacles.length; i++) {
+                const obstacle = obstacles[i];
+                const speed = parseFloat(obstacle.dataset.speed);
+                const newLeft = obstacle.offsetLeft + speed;
+                obstacle.style.left = newLeft + 'px';
+                
+                // Remove if off screen
+                if ((speed > 0 && newLeft > gameWidth) || (speed < 0 && newLeft + obstacle.offsetWidth < 0)) {
+                    gameContainer.removeChild(obstacle);
+                    obstacles.splice(i, 1);
+                    i--;
+                    continue;
+                }
+                
+                // Check collision with player (if not shielded)
+                if (!isPoweredUp2 && checkCollision(
+                    playerX, playerY, playerWidth, playerHeight,
+                    obstacle.offsetLeft, obstacle.offsetTop, obstacle.offsetWidth, obstacle.offsetHeight
+                )) {
+                    endGame(obstacle.dataset.reason);
+                    return;
+                }
+            }
+            
+            // Continue game loop
+            gameLoop = requestAnimationFrame(gameUpdate);
+        }
+        
+        // End game (loss)
+        function endGame(reason) {
+            gameActive = false;
+            stopGameIntervals();
+            
+            lostReason.textContent = "Your deal was derailed by: " + reason;
+            finalScore.textContent = timeRemaining;
+            gameOverScreen.style.display = 'flex';
+        }
+        
+        // Win game
+        function winGame() {
+            gameActive = false;
+            stopGameIntervals();
+            
+            winScore.textContent = timeRemaining;
+            winScreen.style.display = 'flex';
+        }
+        
+        // Stop all game intervals
+        function stopGameIntervals() {
+            cancelAnimationFrame(gameLoop);
+            clearInterval(timerInterval);
+            clearInterval(letterSpawnInterval);
+            clearInterval(obstacleSpawnInterval);
+            clearInterval(powerup1Interval);
+            clearInterval(powerup2Interval);
+            clearTimeout(powerup1Timer);
+            clearTimeout(powerup2Timer);
+        }
+        
+        // Handle keyboard input
+        document.addEventListener('keydown', function(e) {
+            if (!gameActive) return;
+            
+            const key = e.key.toLowerCase();
+            
+            switch(key) {
+                case 'arrowleft':
+                case 'a':
+                    playerX = Math.max(0, playerX - playerSpeed);
+                    break;
+                case 'arrowright':
+                case 'd':
+                    playerX = Math.min(gameWidth - playerWidth, playerX + playerSpeed);
+                    break;
+                case 'arrowup':
+                case 'w':
+                    playerY = Math.max(0, playerY - playerSpeed);
+                    break;
+                case 'arrowdown':
+                case 's':
+                    playerY = Math.min(gameHeight - playerHeight, playerY + playerSpeed);
+                    break;
+            }
+            
+            updatePlayerPosition();
+        });
+        
+        // Set up button event listeners
+        startButton.addEventListener('click', initGame);
+        retryButton.addEventListener('click', initGame);
+        playAgainButton.addEventListener('click', initGame);
+        
+        // Initialize player position on load
+        updatePlayerPosition();
+    </script>
+</body>
+</html>

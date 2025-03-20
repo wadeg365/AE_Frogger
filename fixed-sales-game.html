@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Journey Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            background-color: #333;
+            overflow: hidden;
+        }
+        
+        #player {
+            position: absolute;
+            width: 40px;
+            height: 60px;
+            background-image: url('Player1.png');
+            background-size: cover;
+            background-position: center;
+            border-radius: 5px;
+        }
+        
+        .letter {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: gold;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+        
+        .obstacle {
+            position: absolute;
+            height: 30px;
+            background-color: #f44336;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            white-space: nowrap;
+            padding: 0 10px;
+            box-sizing: border-box;
+            min-width: 100px; /* Ensure minimum width for text */
+        }
+        
+        #powerup1 {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background-color: orange;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+        
+        #powerup2 {
+            position: absolute;
+            width: 80px;
+            height: 60px;
+            background-color: purple;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+        
+        #startScreen, #gameOverScreen, #winScreen, #highScoreInputScreen, #instructionsScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        #gameOverScreen, #winScreen, #highScoreInputScreen, #instructionsScreen {
+            display: none;
+        }
+        
+        #highScoreTable {
+            margin: 15px 0;
+            width: 300px;
+            border-collapse: collapse;
+        }
+        
+        #highScoreTable th, #highScoreTable td {
+            padding: 6px 10px;
+            text-align: left;
+            border-bottom: 1px solid #444;
+        }
+        
+        #highScoreTable th {
+            background-color: #333;
+            font-weight: bold;
+        }
+        
+        #highScoreTable tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        #highScoreInput {
+            margin: 10px 0;
+            padding: 8px;
+            font-size: 16px;
+            width: 100px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        
+        .gameButtons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        
+        #hud {
+            position: absolute;
+            width: 100%;
+            top: 10px;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            padding: 0 10px;
+            box-sizing: border-box;
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        #letterTracker {
+            display: flex;
+            height: 25px;
+        }
+        
+        .letterBox {
+            width: 25px;
+            height: 25px;
+            margin-right: 5px;
+            border: 1px solid white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        #goal {
+            height: 25px;
+            background-color: #4caf50 !important;
+            color: white !important;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 3px;
+            padding: 0 10px;
+            font-weight: bold;
+            border: 1px solid white;
+            margin: 0 15px;
+            flex-grow: 1;
+            max-width: 150px;
+        }
+        
+        #timer {
+            font-size: 14px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .collected {
+            background-color: gold;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- HUD -->
+        <div id="hud">
+            <div id="letterTracker">
+                <div class="letterBox" id="letter-M">M</div>
+                <div class="letterBox" id="letter-E">E</div>
+                <div class="letterBox" id="letter-D1">D</div>
+                <div class="letterBox" id="letter-D2">D</div>
+                <div class="letterBox" id="letter-P">P</div>
+                <div class="letterBox" id="letter-I">I</div>
+                <div class="letterBox" id="letter-C1">C</div>
+                <div class="letterBox" id="letter-C2">C</div>
+            </div>
+            <div id="goal">CLOSED WON!!!</div>
+            <div id="timer">100</div>
+        </div>
+        
+        <!-- Game elements -->
+        <div id="player"></div>
+        <div id="powerup1">Compelling Event</div>
+        <div id="powerup2">PSF COMMIT</div>
+
+        <!-- Start Screen -->
+        <div id="startScreen">
+            <h1>Sales Journey to Closed Won</h1>
+            
+            <h2>High Scores</h2>
+            <table id="highScoreTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Name</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody id="highScoresList">
+                    <!-- High scores will be populated here -->
+                </tbody>
+            </table>
+            
+            <p id="gamesPlayedCounter">Total Games Played: 0</p>
+            
+            <div class="gameButtons">
+                <button id="startButton">Start Game</button>
+                <button id="showInstructionsButton">How to Play</button>
+            </div>
+        </div>
+        
+        <!-- Instructions Screen -->
+        <div id="instructionsScreen">
+            <h1>How to Play</h1>
+            <p>Collect all MEDDPICC letters before time runs out</p>
+            <p>Avoid the red obstacles</p>
+            <p>Use arrow keys or WASD to move</p>
+            <p><strong>Power-ups:</strong></p>
+            <p>"Compelling Event" (orange): 3x speed for 6 seconds</p>
+            <p>"PSF COMMIT" (purple): Obstacle immunity for 6 seconds</p>
+            <p>Note: If you pick up a letter you already have, you'll lose it!</p>
+            
+            <button id="backToMenuButton">Back to Menu</button>
+        </div>
+        
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen">
+            <h1>Deal Lost!</h1>
+            <p id="lostReason">Your deal was derailed</p>
+            <p>Score: <span id="finalScore">0</span></p>
+            <div class="gameButtons">
+                <button id="retryButton">Try Again</button>
+                <button id="returnToMenuButton">Main Menu</button>
+            </div>
+        </div>
+        
+        <!-- Win Screen -->
+        <div id="winScreen">
+            <h1>Deal Closed Won!</h1>
+            <p>Congratulations! You collected all MEDDPICC elements</p>
+            <p>Score: <span id="winScore">0</span></p>
+            <div class="gameButtons">
+                <button id="playAgainButton">Play Again</button>
+                <button id="returnToMenuFromWinButton">Main Menu</button>
+            </div>
+        </div>
+        
+        <!-- High Score Input Screen -->
+        <div id="highScoreInputScreen">
+            <h1>New High Score!</h1>
+            <p>Your Score: <span id="newHighScore">0</span></p>
+            <p>Enter your initials (3 letters):</p>
+            <input type="text" id="highScoreInput" maxlength="3" placeholder="AAA">
+            <div class="gameButtons">
+                <button id="submitScoreButton">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game elements
+        const gameContainer = document.getElementById('gameContainer');
+        const player = document.getElementById('player');
+        const goal = document.getElementById('goal');
+        const timer = document.getElementById('timer');
+        const powerup1 = document.getElementById('powerup1');
+        const powerup2 = document.getElementById('powerup2');
+        const gamesPlayedCounter = document.getElementById('gamesPlayedCounter');
+        
+        // Screens
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const winScreen = document.getElementById('winScreen');
+        const highScoreInputScreen = document.getElementById('highScoreInputScreen');
+        const instructionsScreen = document.getElementById('instructionsScreen');
+        const lostReason = document.getElementById('lostReason');
+        const finalScore = document.getElementById('finalScore');
+        const winScore = document.getElementById('winScore');
+        const newHighScore = document.getElementById('newHighScore');
+        const highScoreInput = document.getElementById('highScoreInput');
+        const highScoresList = document.getElementById('highScoresList');
+        
+        // Buttons
+        const startButton = document.getElementById('startButton');
+        const showInstructionsButton = document.getElementById('showInstructionsButton');
+        const backToMenuButton = document.getElementById('backToMenuButton');
+        const retryButton = document.getElementById('retryButton');
+        const returnToMenuButton = document.getElementById('returnToMenuButton');
+        const playAgainButton = document.getElementById('playAgainButton');
+        const returnToMenuFromWinButton = document.getElementById('returnToMenuFromWinButton');
+        const submitScoreButton = document.getElementById('submitScoreButton');
+        
+        // High scores management
+        let highScores = [];
+        const MAX_HIGH_SCORES = 10;
+        
+        // Load high scores from local storage
+        function loadHighScores() {
+            const savedScores = localStorage.getItem('salesGameHighScores');
+            if (savedScores) {
+                highScores = JSON.parse(savedScores);
+            } else {
+                // Default high scores if none exist
+                highScores = [
+                    { name: "SAM", score: 85 },
+                    { name: "JOE", score: 74 },
+                    { name: "AMY", score: 67 },
+                    { name: "BOB", score: 58 },
+                    { name: "TOM", score: 45 }
+                ];
+                saveHighScores();
+            }
+            
+            // Load total games played
+            const savedGamesPlayed = localStorage.getItem('salesGameTotalPlayed');
+            if (savedGamesPlayed) {
+                totalGamesPlayed = parseInt(savedGamesPlayed);
+            }
+            
+            // Update display
+            displayHighScores();
+            updateGamesPlayedCounter();
+        }
+        
+        // Save high scores to local storage
+        function saveHighScores() {
+            localStorage.setItem('salesGameHighScores', JSON.stringify(highScores));
+        }
+        
+        // Save games played count to local storage
+        function saveGamesPlayed() {
+            localStorage.setItem('salesGameTotalPlayed', totalGamesPlayed.toString());
+        }
+        
+        // Update games played counter display
+        function updateGamesPlayedCounter() {
+            gamesPlayedCounter.textContent = `Total Games Played: ${totalGamesPlayed}`;
+        }
+        
+        // Increment games played counter
+        function incrementGamesPlayed() {
+            totalGamesPlayed++;
+            saveGamesPlayed();
+            updateGamesPlayedCounter();
+        }
+        
+        // Display high scores in the table
+        function displayHighScores() {
+            highScoresList.innerHTML = '';
+            
+            highScores.forEach((score, index) => {
+                const row = document.createElement('tr');
+                const rankCell = document.createElement('td');
+                const nameCell = document.createElement('td');
+                const scoreCell = document.createElement('td');
+                
+                rankCell.textContent = index + 1;
+                nameCell.textContent = score.name;
+                scoreCell.textContent = score.score;
+                
+                row.appendChild(rankCell);
+                row.appendChild(nameCell);
+                row.appendChild(scoreCell);
+                
+                highScoresList.appendChild(row);
+            });
+        }
+        
+        // Check if a score qualifies for the high score list
+        function isHighScore(score) {
+            if (highScores.length < MAX_HIGH_SCORES) {
+                return true;
+            }
+            
+            return score > highScores[highScores.length - 1].score;
+        }
+        
+        // Add a new high score
+        function addHighScore(name, score) {
+            const newScore = { name, score };
+            
+            // Add the new score
+            highScores.push(newScore);
+            
+            // Sort by score (descending)
+            highScores.sort((a, b) => b.score - a.score);
+            
+            // Trim to max scores
+            if (highScores.length > MAX_HIGH_SCORES) {
+                highScores = highScores.slice(0, MAX_HIGH_SCORES);
+            }
+            
+            // Save and display
+            saveHighScores();
+            displayHighScores();
+        }
+        
+        // Game variables
+        const gameWidth = 600;
+        const gameHeight = 600;
+        const playerWidth = 40;
+        const playerHeight = 60;
+        let playerX = gameWidth / 2 - playerWidth / 2;
+        let playerY = gameHeight - playerHeight - 20;
+        let playerSpeed = 10; // Doubled base speed
+        let gameActive = false;
+        let timeRemaining = 100;
+        let gameLoop;
+        let timerInterval;
+        let letters = [];
+        let obstacles = [];
+        let letterSpawnInterval;
+        let obstacleSpawnInterval;
+        let powerup1Interval;
+        let powerup2Interval;
+        let isPoweredUp1 = false;
+        let isPoweredUp2 = false;
+        let powerup1Timer;
+        let powerup2Timer;
+        let totalGamesPlayed = 0; // Track total games played
+        
+        // Letter tracking
+        const collectedLetters = {
+            'M': false,
+            'E': false,
+            'D1': false,
+            'D2': false,
+            'P': false,
+            'I': false,
+            'C1': false,
+            'C2': false
+        };
+        
+        // Deal breakers
+        const dealBreakers = [
+            "Price",
+            "Funding Denied",
+            "Doing Internally",
+            "Different Partner",
+            "On Hold",
+            "Competing Priorities"
+        ];
+        
+        // Initialize player position
+        function resetPlayer() {
+            playerX = gameWidth / 2 - playerWidth / 2;
+            playerY = gameHeight - playerHeight - 20;
+            updatePlayerPosition();
+            player.style.boxShadow = 'none';
+            player.style.border = 'none';
+        }
+        
+        // Update player position on screen
+        function updatePlayerPosition() {
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+        }
+        
+        // Initialize game
+        function initGame() {
+            console.log("initGame called");
+            
+            // Increment games played counter
+            incrementGamesPlayed();
+            
+            gameActive = true;
+            timeRemaining = 100;
+            isPoweredUp1 = false;
+            isPoweredUp2 = false;
+            playerSpeed = 10; // Doubled from 5 to 10
+            
+            // Reset collected letters
+            for (let key in collectedLetters) {
+                collectedLetters[key] = false;
+            }
+            updateLetterDisplay();
+            
+            // Clear any existing game elements
+            clearLetters();
+            clearObstacles();
+            
+            // Reset player
+            resetPlayer();
+            
+            // Hide screens
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            winScreen.style.display = 'none';
+            highScoreInputScreen.style.display = 'none';
+            instructionsScreen.style.display = 'none';
+            
+            // Update timer display
+            timer.textContent = timeRemaining;
+            
+            // Start game timers
+            timerInterval = setInterval(updateTimer, 1000);
+            letterSpawnInterval = setInterval(spawnLetter, 3000);
+            obstacleSpawnInterval = setInterval(spawnObstacle, 2000);
+            powerup1Interval = setInterval(() => spawnPowerup(powerup1), 45000);
+            powerup2Interval = setInterval(() => spawnPowerup(powerup2), 30000);
+            
+            // Start game loop
+            gameLoop = requestAnimationFrame(gameUpdate);
+            
+            console.log("Game started");
+        }
+        
+        // Return to main menu
+        function returnToMenu() {
+            console.log("returnToMenu called");
+            
+            stopGameIntervals();
+            resetPlayer();
+            clearLetters();
+            clearObstacles();
+            
+            // Reset scores
+            for (let key in collectedLetters) {
+                collectedLetters[key] = false;
+            }
+            updateLetterDisplay();
+            
+            // Show start screen
+            startScreen.style.display = 'flex';
+            gameOverScreen.style.display = 'none';
+            winScreen.style.display = 'none';
+            highScoreInputScreen.style.display = 'none';
+            instructionsScreen.style.display = 'none';
+            
+            // Refresh high scores
+            displayHighScores();
+        }
+        
+        // Show instructions screen
+        function showInstructions() {
+            console.log("showInstructions called");
+            
+            startScreen.style.display = 'none';
+            instructionsScreen.style.display = 'flex';
+        }
+        
+        // Update timer
+        function updateTimer() {
+            if (!gameActive) return;
+            
+            timeRemaining--;
+            timer.textContent = timeRemaining;
+            
+            if (timeRemaining <= 0) {
+                endGame("Time ran out");
+            }
+        }
+        
+        // Spawn a letter
+        function spawnLetter() {
+            if (!gameActive) return;
+            
+            // Find which letters haven't been collected
+            const uncollectedLetters = [];
+            
+            if (!collectedLetters['M']) uncollectedLetters.push(['M', 'M']);
+            if (!collectedLetters['E']) uncollectedLetters.push(['E', 'E']);
+            if (!collectedLetters['D1']) uncollectedLetters.push(['D1', 'D']);
+            if (!collectedLetters['D2']) uncollectedLetters.push(['D2', 'D']);
+            if (!collectedLetters['P']) uncollectedLetters.push(['P', 'P']);
+            if (!collectedLetters['I']) uncollectedLetters.push(['I', 'I']);
+            if (!collectedLetters['C1']) uncollectedLett
